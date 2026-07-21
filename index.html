@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro</title>
+</head>
+<body>
+    <form id="registro-form" method="post" action="/registrar">
+        <input type="text" name="nombre" placeholder="Nombre" autocomplete="given-name" required>
+        <input type="text" name="apellido_paterno" placeholder="Apellido paterno" autocomplete="family-name" required>
+        <input type="text" name="apellido_materno" placeholder="Apellido materno" required>
+
+        <fieldset>
+            <legend>Fecha de nacimiento</legend>
+            <input type="number" name="dia" placeholder="Día" min="1" max="31" required>
+            <select name="mes" required>
+                <option value="">Mes</option>
+                <option value="1">Enero</option>
+                <option value="2">Febrero</option>
+                <option value="3">Marzo</option>
+                <option value="4">Abril</option>
+                <option value="5">Mayo</option>
+                <option value="6">Junio</option>
+                <option value="7">Julio</option>
+                <option value="8">Agosto</option>
+                <option value="9">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+            </select>
+            <input type="number" name="anio" placeholder="Año" min="1900" max="2100" required>
+        </fieldset>
+
+        <fieldset>
+            <legend>Género</legend>
+            <select name="genero" required>
+                <option value="">Selecciona una opción</option>
+                <option value="femenino">Femenino</option>
+                <option value="masculino">Masculino</option>
+                <option value="no_especificar">Prefiero no decirlo</option>
+            </select>
+        </fieldset>
+
+        <fieldset>
+            <legend>Contraseña temporal</legend>
+            <input id="contrasena-generada" name="contrasena" type="text" readonly aria-label="Contraseña generada">
+            <button id="generar-contrasena" type="button">Generar otra</button>
+            <button id="copiar-contrasena" type="button">Copiar</button>
+            <p>Esta contraseña fue generada automáticamente. Debes cambiarla después de iniciar sesión.</p>
+            <p id="estado-contrasena" role="status" aria-live="polite"></p>
+        </fieldset>
+
+        <button type="submit">Subir</button>
+    </form>
+    <p id="estado" role="status" aria-live="polite"></p>
+
+    <script>
+        const form = document.getElementById("registro-form");
+        const estado = document.getElementById("estado");
+        const contrasenaGenerada = document.getElementById("contrasena-generada");
+        const estadoContrasena = document.getElementById("estado-contrasena");
+
+        function indiceAleatorio(limite) {
+            const maximoValido = Math.floor(256 / limite) * limite;
+            const numero = new Uint8Array(1);
+            do {
+                crypto.getRandomValues(numero);
+            } while (numero[0] >= maximoValido);
+            return numero[0] % limite;
+        }
+
+        function caracterAleatorio(caracteres) {
+            return caracteres[indiceAleatorio(caracteres.length)];
+        }
+
+        function mezclar(caracteres) {
+            for (let indice = caracteres.length - 1; indice > 0; indice--) {
+                const posicion = indiceAleatorio(indice + 1);
+                [caracteres[indice], caracteres[posicion]] =
+                    [caracteres[posicion], caracteres[indice]];
+            }
+            return caracteres.join("");
+        }
+
+        function generarContrasena() {
+            const grupos = [
+                "ABCDEFGHJKLMNPQRSTUVWXYZ",
+                "abcdefghijkmnopqrstuvwxyz",
+                "23456789",
+                "!@#$%&*_-+=",
+            ];
+            const todos = grupos.join("");
+            const caracteres = grupos.map(caracterAleatorio);
+            while (caracteres.length < 16) {
+                caracteres.push(caracterAleatorio(todos));
+            }
+            contrasenaGenerada.value = mezclar(caracteres);
+            estadoContrasena.textContent = "";
+        }
+
+        document.getElementById("generar-contrasena").addEventListener(
+            "click",
+            generarContrasena,
+        );
+
+        document.getElementById("copiar-contrasena").addEventListener(
+            "click",
+            async () => {
+                try {
+                    await navigator.clipboard.writeText(contrasenaGenerada.value);
+                    estadoContrasena.textContent = "Contraseña copiada.";
+                } catch (error) {
+                    contrasenaGenerada.select();
+                    estadoContrasena.textContent =
+                        "No se pudo copiar automáticamente. Usa Ctrl+C.";
+                }
+            },
+        );
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            estado.textContent = "Iniciando proceso...";
+
+            try {
+                const response = await fetch(form.action, {
+                    method: form.method,
+                    body: new FormData(form),
+                });
+                estado.textContent = await response.text();
+            } catch (error) {
+                estado.textContent = "No se pudo iniciar el proceso.";
+            }
+        });
+
+        generarContrasena();
+    </script>
+</body>
+</html>
